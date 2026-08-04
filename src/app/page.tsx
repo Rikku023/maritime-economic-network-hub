@@ -6,12 +6,11 @@ import Navbar from '@/components/Navbar';
 import SummaryCards from '@/components/SummaryCards';
 import Sidebar from '@/components/Sidebar';
 import PortTable from '@/components/PortTable';
-import { Port, FilterState, Wilayah, JenisPelabuhan } from '@/types/port';
+import { Port, FilterState, Wilayah, JenisPelabuhan, StatusProfitability } from '@/types/port';
 import { PORTS_DATA } from '@/data/ports';
 import { enrichPortsWithDistance } from '@/lib/distance';
 import { Loader2 } from 'lucide-react';
 
-// Dynamic Import for MapComponent to disable SSR for Deck.gl & MapLibre
 const MapComponent = dynamic(() => import('@/components/Map'), {
   ssr: false,
   loading: () => (
@@ -38,6 +37,12 @@ const ALL_JENIS: JenisPelabuhan[] = [
   'Penyeberangan',
 ];
 
+const ALL_STATUS: StatusProfitability[] = [
+  'High Profit',
+  'Balanced',
+  'Low Profit / High Imbalance',
+];
+
 export default function HomePage() {
   const [ports, setPorts] = useState<Port[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -46,6 +51,7 @@ export default function HomePage() {
   const [filters, setFilters] = useState<FilterState>({
     wilayah: ALL_WILAYAH,
     jenis: ALL_JENIS,
+    statusProfitability: ALL_STATUS,
     searchQuery: '',
     hoverMode: true,
   });
@@ -60,7 +66,6 @@ export default function HomePage() {
         if (json.success && Array.isArray(json.data)) {
           setPorts(json.data);
         } else {
-          // Fallback to local enrichment
           setPorts(enrichPortsWithDistance(PORTS_DATA));
         }
       } catch (err) {
@@ -78,10 +83,18 @@ export default function HomePage() {
   const filteredPorts = useMemo(() => {
     return ports.filter((port) => {
       // Wilayah Filter
-      const matchWilayah = filters.wilayah.length === 0 || filters.wilayah.includes(port.wilayah);
+      const matchWilayah =
+        filters.wilayah.length === 0 || filters.wilayah.includes(port.wilayah);
 
       // Jenis Filter
-      const matchJenis = filters.jenis.length === 0 || filters.jenis.includes(port.jenis);
+      const matchJenis =
+        filters.jenis.length === 0 || filters.jenis.includes(port.jenis);
+
+      // Status Profitability Filter
+      const matchStatus =
+        filters.statusProfitability.length === 0 ||
+        !port.status_profitability ||
+        filters.statusProfitability.includes(port.status_profitability);
 
       // Search Query Filter
       const query = filters.searchQuery.toLowerCase().trim();
@@ -90,7 +103,7 @@ export default function HomePage() {
         port.nama_pelabuhan.toLowerCase().includes(query) ||
         port.lokasi.toLowerCase().includes(query);
 
-      return matchWilayah && matchJenis && matchQuery;
+      return matchWilayah && matchJenis && matchStatus && matchQuery;
     });
   }, [ports, filters]);
 
@@ -98,6 +111,7 @@ export default function HomePage() {
     setFilters({
       wilayah: ALL_WILAYAH,
       jenis: ALL_JENIS,
+      statusProfitability: ALL_STATUS,
       searchQuery: '',
       hoverMode: true,
     });
@@ -128,7 +142,7 @@ export default function HomePage() {
             {loading ? (
               <div className="w-full h-[580px] rounded-2xl bg-slate-950 border border-sky-500/20 flex flex-col items-center justify-center gap-3 text-sky-400">
                 <Loader2 className="w-8 h-8 animate-spin" />
-                <span className="text-sm font-medium">Memuat Data Pelabuhan...</span>
+                <span className="text-sm font-medium">Memuat Data Analisis Rute...</span>
               </div>
             ) : (
               <MapComponent ports={filteredPorts} hoverMode={filters.hoverMode} />
@@ -143,8 +157,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="w-full border-t border-slate-800/80 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-400">
         <p>
-          Maritime Economic Network Hub &copy; {new Date().getFullYear()} | Built with Next.js 14,
-          Deck.gl & MapLibre GL | Vercel Deployment Ready
+          Maritime Economic Network Hub &copy; {new Date().getFullYear()} | Integrated Ekonometrika Analytics | Built with Next.js 14, Deck.gl & MapLibre GL
         </p>
       </footer>
     </div>

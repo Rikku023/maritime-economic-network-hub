@@ -22,7 +22,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-// CDN GeoJSON Data Daratan Indonesia
+// CDN GeoJSON Data Daratan Pulau-Pulau Indonesia
 const INDONESIA_GEOJSON_URL =
   'https://raw.githubusercontent.com/superpika/indonesia-geojson/master/indonesia.geojson';
 
@@ -33,7 +33,7 @@ const CARTO_DARK_MAP_STYLE =
 export default function MapComponent({ ports, hoverMode }: MapProps) {
   const [hoveredPort, setHoveredPort] = useState<Port | null>(null);
 
-  // Define Marker Colors [R, G, B, A]
+  // Marker Colors [R, G, B, A]
   const getPortColor = (jenis: string): [number, number, number, number] => {
     switch (jenis) {
       case 'Central Hub':
@@ -49,7 +49,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // Define Marker Radius in Meters
+  // Marker Radius in Meters
   const getPortRadius = (jenis: string): number => {
     switch (jenis) {
       case 'Central Hub':
@@ -65,13 +65,26 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
+  // Dynamic 3D Arc Color based on Route Profitability Status
+  const getArcColor = (status?: string): [number, number, number, number] => {
+    switch (status) {
+      case 'High Profit':
+        return [0, 255, 128, 240]; // Hijau Neon
+      case 'Balanced':
+        return [0, 245, 255, 220]; // Cyan Neon
+      case 'Low Profit / High Imbalance':
+        return [255, 99, 132, 240]; // Merah/Kuning Neon
+      default:
+        return [0, 245, 255, 220];
+    }
+  };
+
   // Filter destination ports for ArcLayer
   const arcData = useMemo(() => {
     const destinations = ports.filter(
       (p) => p.nama_pelabuhan !== TANJUNG_PERAK_HUB.nama_pelabuhan
     );
 
-    // If hover mode is enabled, only show arc for the hovered port
     if (hoverMode) {
       if (!hoveredPort || hoveredPort.nama_pelabuhan === TANJUNG_PERAK_HUB.nama_pelabuhan) {
         return [];
@@ -82,9 +95,9 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     return destinations;
   }, [ports, hoverMode, hoveredPort]);
 
-  // Deck.gl Layers in Order: (1) GeoJsonLayer -> (2) ArcLayer -> (3) ScatterplotLayer
+  // Deck.gl Layers: (1) GeoJsonLayer -> (2) ArcLayer -> (3) ScatterplotLayer
   const layers = [
-    // 1. GEOJSON NEON RADAR LAYER (Indonesia Island Boundaries & Landmass)
+    // 1. GEOJSON NEON RADAR LAYER (Indonesia Island Boundaries)
     new GeoJsonLayer({
       id: 'indonesia-geojson-neon',
       data: INDONESIA_GEOJSON_URL,
@@ -97,7 +110,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
       pickable: false,
     }),
 
-    // 2. ARC LAYER (3D Route Lines from Tanjung Perak Hub)
+    // 2. ARC LAYER 3D (Warna sesuai Status Profitability Rute)
     new ArcLayer({
       id: 'arc-layer',
       data: arcData,
@@ -106,9 +119,9 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
         TANJUNG_PERAK_HUB.latitude,
       ],
       getTargetPosition: (d: Port) => [d.longitude, d.latitude],
-      getSourceColor: [0, 245, 255, 200], // Neon Cyan origin
-      getTargetColor: [245, 158, 11, 240], // Neon Gold destination
-      getWidth: 3.5,
+      getSourceColor: [0, 245, 255, 180],
+      getTargetColor: (d: Port) => getArcColor(d.status_profitability),
+      getWidth: 3.8,
       greatCircle: true,
       pickable: true,
     }),
@@ -138,22 +151,23 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
   return (
     <div className="relative w-full h-[580px] rounded-2xl overflow-hidden border border-sky-500/20 shadow-2xl bg-slate-950">
       {/* Map Top-Left Legend Overlay */}
-      <div className="absolute top-3 left-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3.5 py-2 flex items-center gap-4 text-xs shadow-lg">
-        <div className="flex items-center gap-1.5 text-slate-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500"></span>
-          <span>Central Hub</span>
+      <div className="absolute top-3 left-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3.5 py-2 flex flex-col gap-1.5 text-xs shadow-lg">
+        <div className="flex items-center gap-3 font-semibold text-slate-300 border-b border-slate-800 pb-1">
+          <span>Tipe Pelabuhan:</span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Hub</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Utama</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Feeder</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Penyeberangan</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-slate-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-          <span>Hub Utama</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-slate-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-          <span>Feeder</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-slate-300">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-          <span>Penyeberangan</span>
+        <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <span>Profitabilitas Rute:</span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> High Profit</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400"></span> Balanced</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400"></span> High Imbalance</span>
+          </div>
         </div>
       </div>
 
@@ -163,22 +177,20 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
         <span>{hoverMode ? '✨ Hover Mode: Aktif' : '🌐 Mode Semua Rute'}</span>
       </div>
 
-      {/* DeckGL Canvas with CartoDB MapLibre Basemap */}
+      {/* DeckGL Canvas with CartoDB Vector Tile Style & MapLibre */}
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
         controller={true}
         layers={layers}
         style={{ position: 'relative', width: '100%', height: '100%' }}
       >
-        <Map
-          mapStyle={CARTO_DARK_MAP_STYLE}
-        />
+        <Map mapStyle={CARTO_DARK_MAP_STYLE} />
       </DeckGL>
 
-      {/* Interactive Hover Tooltip */}
+      {/* Econometric Interactive Hover Tooltip */}
       {hoveredPort && (
         <div
-          className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-white max-w-xs"
+          className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-md text-white min-w-[260px] max-w-xs"
           style={{
             bottom: '24px',
             left: '24px',
@@ -190,21 +202,75 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
           <div className="text-xs text-slate-400 mb-2">
             📍 {hoveredPort.lokasi} ({hoveredPort.wilayah})
           </div>
-          <div className="h-px bg-slate-800 my-1.5"></div>
-          <div className="text-xs text-slate-300 mb-1">
-            Tipe Pelabuhan: <strong className="text-slate-100">{hoveredPort.jenis}</strong>
+
+          <div className="h-px bg-slate-800 my-2"></div>
+
+          {/* Econometric Metrics Details */}
+          <div className="space-y-1.5 text-xs text-slate-300">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Tipe Pelabuhan:</span>
+              <span className="font-semibold text-slate-200">{hoveredPort.jenis}</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-slate-400">Jarak dari Perak:</span>
+              <span className="font-semibold text-amber-400">
+                {hoveredPort.jarak_nm !== undefined
+                  ? `${hoveredPort.jarak_nm.toLocaleString('id-ID')} NM`
+                  : `${calculateHaversineNM(
+                      TANJUNG_PERAK_HUB.latitude,
+                      TANJUNG_PERAK_HUB.longitude,
+                      hoveredPort.latitude,
+                      hoveredPort.longitude
+                    )} NM`}
+              </span>
+            </div>
+
+            {hoveredPort.total_bongkar_ton !== undefined && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Vol. Bongkar / Muat:</span>
+                  <span className="font-medium text-cyan-300">
+                    {((hoveredPort.total_bongkar_ton + (hoveredPort.total_muat_ton || 0)) / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}rb Ton
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Imbalance Ratio:</span>
+                  <span className="font-semibold text-emerald-400">
+                    {hoveredPort.imbalance_ratio?.toFixed(2)}x
+                  </span>
+                </div>
+
+                {hoveredPort.est_fuel_cost_idr !== undefined && hoveredPort.est_port_cost_idr !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Est. Cost (BBM+Port):</span>
+                    <span className="font-semibold text-slate-100">
+                      Rp {((hoveredPort.est_fuel_cost_idr + hoveredPort.est_port_cost_idr) / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-          <div className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md inline-block mt-1">
-            📏 Jarak dari Tanjung Perak:{' '}
-            {hoveredPort.jarak_nm !== undefined
-              ? `${hoveredPort.jarak_nm.toLocaleString('id-ID')} NM`
-              : `${calculateHaversineNM(
-                  TANJUNG_PERAK_HUB.latitude,
-                  TANJUNG_PERAK_HUB.longitude,
-                  hoveredPort.latitude,
-                  hoveredPort.longitude
-                )} NM`}
-          </div>
+
+          {/* Profitability Status Badge */}
+          {hoveredPort.status_profitability && (
+            <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">Status Rute:</span>
+              <span
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
+                  hoveredPort.status_profitability === 'High Profit'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : hoveredPort.status_profitability === 'Balanced'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                    : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                }`}
+              >
+                {hoveredPort.status_profitability}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

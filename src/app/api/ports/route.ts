@@ -1,33 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PORTS_DATA } from '@/data/ports';
 import { enrichPortsWithDistance, TANJUNG_PERAK_HUB } from '@/lib/distance';
-import { Wilayah, JenisPelabuhan } from '@/types/port';
+import routesAnalyticsJson from '@/data/routes_analytics.json';
+import { Wilayah, JenisPelabuhan, StatusProfitability, Port } from '@/types/port';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    
-    // Read query parameters
     const wilayahParam = searchParams.get('wilayah');
     const jenisParam = searchParams.get('jenis');
+    const statusParam = searchParams.get('status');
     const searchParam = searchParams.get('search');
 
-    // Enrich dataset with distance in NM
-    let ports = enrichPortsWithDistance(PORTS_DATA);
+    // Build lookup map from analytics JSON
+    const analyticsMap = new Map<string, any>();
+    if (routesAnalyticsJson && Array.isArray(routesAnalyticsJson.routes)) {
+      routesAnalyticsJson.routes.forEach((r: any) => {
+        analyticsMap.set(r.id, r);
+      });
+    }
 
-    // Filter by Wilayah (comma-separated or single)
+    // Merge ports_data with analytics
+    let ports: Port[] = enrichPortsWithDistance(PORTS_DATA).map((port) => {
+      const analytics = analyticsMap.get(port.id);
+      if (analytics) {
+        return {
+          ...port,
+          total_bongkar_ton: analytics.total_bongkar_ton,
+          total_muat_ton: analytics.total_muat_ton,
+          trip_count: analytics.trip_count,
+          imbalance_ratio: analytics.imbalance_ratio,
+          port_stay_hours: analytics.port_stay_hours,
+          est_fuel_cost_idr: analytics.est_fuel_cost_idr,
+          est_port_cost_idr: analytics.est_port_cost_idr,
+          gravity_score: analytics.gravity_score,
+          status_profitability: analytics.status_profitability as StatusProfitability,
+        };
+      }
+      return port;
+    });
+
     if (wilayahParam) {
       const allowedWilayah = wilayahParam.split(',') as Wilayah[];
       ports = ports.filter((p) => allowedWilayah.includes(p.wilayah));
     }
 
-    // Filter by Jenis (comma-separated or single)
     if (jenisParam) {
       const allowedJenis = jenisParam.split(',') as JenisPelabuhan[];
       ports = ports.filter((p) => allowedJenis.includes(p.jenis));
     }
 
-    // Filter by Search Query (Nama or Lokasi)
+    if (statusParam) {
+      const allowedStatus = statusParam.split(',') as StatusProfitability[];
+      ports = ports.filter(
+        (p) => p.status_profitability && allowedStatus.includes(p.status_profitability)
+      );
+    }
+
     if (searchParam) {
       const query = searchParam.toLowerCase().trim();
       ports = ports.filter(
@@ -39,6 +68,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      metadata: routesAnalyticsJson.metadata || {},
       hub: {
         ...TANJUNG_PERAK_HUB,
         jarak_nm: 0,

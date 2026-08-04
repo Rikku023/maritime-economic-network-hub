@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { FilterState, Wilayah, JenisPelabuhan } from '@/types/port';
-import { Search, Filter, Layers, Eye, RefreshCw, CheckSquare, Square } from 'lucide-react';
+import { FilterState, Wilayah, JenisPelabuhan, StatusProfitability } from '@/types/port';
+import { Search, Filter, Layers, Eye, RefreshCw, CheckSquare, Square, TrendingUp } from 'lucide-react';
 
 interface SidebarProps {
   filters: FilterState;
@@ -27,6 +27,12 @@ const ALL_JENIS: JenisPelabuhan[] = [
   'Penyeberangan',
 ];
 
+const ALL_STATUS: StatusProfitability[] = [
+  'High Profit',
+  'Balanced',
+  'Low Profit / High Imbalance',
+];
+
 export default function Sidebar({
   filters,
   onFilterChange,
@@ -49,6 +55,14 @@ export default function Sidebar({
     onFilterChange({ ...filters, jenis: updated });
   };
 
+  const handleStatusToggle = (s: StatusProfitability) => {
+    const exists = filters.statusProfitability.includes(s);
+    const updated = exists
+      ? filters.statusProfitability.filter((item) => item !== s)
+      : [...filters.statusProfitability, s];
+    onFilterChange({ ...filters, statusProfitability: updated });
+  };
+
   const handleSelectAllWilayah = () => {
     onFilterChange({
       ...filters,
@@ -63,13 +77,23 @@ export default function Sidebar({
     });
   };
 
+  const handleSelectAllStatus = () => {
+    onFilterChange({
+      ...filters,
+      statusProfitability:
+        filters.statusProfitability.length === ALL_STATUS.length
+          ? []
+          : [...ALL_STATUS],
+    });
+  };
+
   return (
     <aside className="w-full lg:w-80 bg-slate-900/90 border border-sky-500/20 rounded-2xl p-5 shadow-xl backdrop-blur-md flex flex-col gap-6">
       {/* Header & Reset */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2 text-sky-400 font-bold text-base">
           <Filter className="w-4 h-4" />
-          <span>Filter & Pencarian</span>
+          <span>Filter & Analisis</span>
         </div>
         <button
           onClick={onReset}
@@ -118,6 +142,49 @@ export default function Sidebar({
         </label>
       </div>
 
+      {/* Filter Status Profitability */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Status Profitabilitas Rute
+          </span>
+          <button
+            onClick={handleSelectAllStatus}
+            className="text-[11px] text-sky-400 hover:underline"
+          >
+            {filters.statusProfitability.length === ALL_STATUS.length ? 'Batal' : 'Pilih Semua'}
+          </button>
+        </div>
+
+        <div className="space-y-1.5">
+          {ALL_STATUS.map((s) => {
+            const isChecked = filters.statusProfitability.includes(s);
+            let textColor = 'text-emerald-400';
+            if (s === 'Balanced') textColor = 'text-cyan-400';
+            if (s === 'Low Profit / High Imbalance') textColor = 'text-rose-400';
+
+            return (
+              <button
+                key={s}
+                onClick={() => handleStatusToggle(s)}
+                className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all ${
+                  isChecked
+                    ? 'bg-slate-800/80 border border-slate-700 text-slate-100'
+                    : 'bg-slate-950/40 border border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span className={textColor}>{s}</span>
+                {isChecked ? (
+                  <CheckSquare className="w-3.5 h-3.5 text-sky-400" />
+                ) : (
+                  <Square className="w-3.5 h-3.5 text-slate-600" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Filter Kategori Wilayah */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -128,7 +195,7 @@ export default function Sidebar({
             onClick={handleSelectAllWilayah}
             className="text-[11px] text-sky-400 hover:underline"
           >
-            {filters.wilayah.length === ALL_WILAYAH.length ? 'Batal Semua' : 'Pilih Semua'}
+            {filters.wilayah.length === ALL_WILAYAH.length ? 'Batal' : 'Pilih Semua'}
           </button>
         </div>
 
@@ -142,7 +209,7 @@ export default function Sidebar({
                 className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-all ${
                   isChecked
                     ? 'bg-sky-500/15 border border-sky-500/40 text-sky-200'
-                    : 'bg-slate-950/40 border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                    : 'bg-slate-950/40 border border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <span>{w}</span>
@@ -167,7 +234,7 @@ export default function Sidebar({
             onClick={handleSelectAllJenis}
             className="text-[11px] text-sky-400 hover:underline"
           >
-            {filters.jenis.length === ALL_JENIS.length ? 'Batal Semua' : 'Pilih Semua'}
+            {filters.jenis.length === ALL_JENIS.length ? 'Batal' : 'Pilih Semua'}
           </button>
         </div>
 

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Port, StatusProfitability } from '@/types/port';
+import { Port } from '@/types/port';
 import { formatDistance } from '@/lib/utils';
-import { ArrowUpDown, Download, Anchor, MapPin } from 'lucide-react';
+import { ArrowUpDown, Download, Anchor } from 'lucide-react';
 
 interface PortTableProps {
   ports: Port[];
@@ -16,7 +16,8 @@ type SortField =
   | 'jenis'
   | 'jarak_nm'
   | 'imbalance_ratio'
-  | 'est_fuel_cost_idr'
+  | 'est_voyage_cost_idr'
+  | 'market_share_pct'
   | 'status_profitability';
 
 type SortOrder = 'asc' | 'desc';
@@ -67,8 +68,9 @@ export default function PortTable({ ports }: PortTableProps) {
       'Total Bongkar (Ton)',
       'Total Muat (Ton)',
       'Imbalance Ratio',
-      'Est. Fuel Cost (IDR)',
-      'Est. Port Cost (IDR)',
+      'Est. Voyage Cost (IDR)',
+      'Market Share (%)',
+      'Struktur Pasar HHI',
       'Status Profitability',
     ];
 
@@ -84,8 +86,9 @@ export default function PortTable({ ports }: PortTableProps) {
       p.total_bongkar_ton || 0,
       p.total_muat_ton || 0,
       p.imbalance_ratio || 0,
-      p.est_fuel_cost_idr || 0,
-      p.est_port_cost_idr || 0,
+      p.est_voyage_cost_idr || (p.est_fuel_cost_idr || 0) + (p.est_port_cost_idr || 0),
+      p.market_share_pct || 0,
+      `"${p.hhi_market_status || 'N/A'}"`,
       `"${p.status_profitability || 'N/A'}"`,
     ]);
 
@@ -98,7 +101,7 @@ export default function PortTable({ ports }: PortTableProps) {
     link.setAttribute('href', encodedUri);
     link.setAttribute(
       'download',
-      `analisis_rute_pelabuhan_indonesia_${new Date().toISOString().slice(0, 10)}.csv`
+      `analisis_ekonometrika_maritim_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -111,10 +114,10 @@ export default function PortTable({ ports }: PortTableProps) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 border-b border-slate-800 pb-4">
         <div>
           <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Anchor className="w-5 h-5 text-sky-400" /> Data Analisis Ekonometrika Rute Pelayaran
+            <Anchor className="w-5 h-5 text-sky-400" /> Data Analisis Ekonometrika & Struktur Pasar Rute
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Metrik operasional, Imbalance Ratio, Estimasi Biaya BBM & Port Charge, serta Status Profitabilitas per Rute Pelabuhan
+            Metrik operasional maritim, Imbalance Ratio, Est. Voyage Cost, Market Share (%), Struktur Pasar HHI & Profitability Badge
           </p>
         </div>
 
@@ -136,7 +139,7 @@ export default function PortTable({ ports }: PortTableProps) {
                 className="py-3.5 px-4 cursor-pointer hover:text-sky-400 transition-colors select-none"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>Nama Pelabuhan</span>
+                  <span>Pelabuhan</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -186,11 +189,20 @@ export default function PortTable({ ports }: PortTableProps) {
                 </div>
               </th>
               <th
-                onClick={() => handleSort('est_fuel_cost_idr')}
+                onClick={() => handleSort('est_voyage_cost_idr')}
                 className="py-3.5 px-4 cursor-pointer hover:text-cyan-400 transition-colors select-none text-right"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>Est. Fuel Cost</span>
+                  <span>Est. Voyage Cost</span>
+                  <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('market_share_pct')}
+                className="py-3.5 px-4 cursor-pointer hover:text-purple-400 transition-colors select-none text-right"
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>Market Share</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -199,7 +211,7 @@ export default function PortTable({ ports }: PortTableProps) {
                 className="py-3.5 px-4 cursor-pointer hover:text-sky-400 transition-colors select-none text-center"
               >
                 <div className="flex items-center justify-center gap-1.5">
-                  <span>Status Profitability</span>
+                  <span>Profitability Status</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -209,7 +221,7 @@ export default function PortTable({ ports }: PortTableProps) {
             {sortedPorts.length > 0 ? (
               sortedPorts.map((port) => {
                 const isCentralHub = port.jenis === 'Central Hub';
-                const totalCost = (port.est_fuel_cost_idr || 0) + (port.est_port_cost_idr || 0);
+                const voyageCost = port.est_voyage_cost_idr || ((port.est_fuel_cost_idr || 0) + (port.est_port_cost_idr || 0));
 
                 return (
                   <tr
@@ -254,11 +266,14 @@ export default function PortTable({ ports }: PortTableProps) {
                       {port.imbalance_ratio !== undefined ? `${port.imbalance_ratio.toFixed(2)}x` : '-'}
                     </td>
                     <td className="py-3 px-4 text-right font-medium text-slate-200 font-mono">
-                      {port.est_fuel_cost_idr !== undefined
-                        ? `Rp ${(port.est_fuel_cost_idr / 1000000).toLocaleString('id-ID', {
+                      {voyageCost !== undefined && voyageCost > 0
+                        ? `Rp ${(voyageCost / 1000000).toLocaleString('id-ID', {
                             maximumFractionDigits: 1,
                           })} Jt`
                         : '-'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-purple-300 font-mono">
+                      {port.market_share_pct !== undefined ? `${port.market_share_pct.toFixed(1)}%` : '-'}
                     </td>
                     <td className="py-3 px-4 text-center">
                       {port.status_profitability ? (
@@ -282,7 +297,7 @@ export default function PortTable({ ports }: PortTableProps) {
               })
             ) : (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="py-8 text-center text-slate-500">
                   Tidak ada pelabuhan yang cocok dengan kriteria filter.
                 </td>
               </tr>

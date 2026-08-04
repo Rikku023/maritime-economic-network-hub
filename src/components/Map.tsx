@@ -13,7 +13,6 @@ interface MapProps {
   hoverMode: boolean;
 }
 
-// Initial Viewport centered over Indonesia
 const INITIAL_VIEW_STATE = {
   longitude: 118.0,
   latitude: -2.5,
@@ -22,22 +21,19 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-// CDN GeoJSON Data Daratan Pulau-Pulau Indonesia
 const INDONESIA_GEOJSON_URL =
   'https://raw.githubusercontent.com/superpika/indonesia-geojson/master/indonesia.geojson';
 
-// CartoDB Dark Matter Free Vector Tile Style JSON
 const CARTO_DARK_MAP_STYLE =
   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 export default function MapComponent({ ports, hoverMode }: MapProps) {
   const [hoveredPort, setHoveredPort] = useState<Port | null>(null);
 
-  // Marker Colors [R, G, B, A]
   const getPortColor = (jenis: string): [number, number, number, number] => {
     switch (jenis) {
       case 'Central Hub':
-        return [244, 63, 94, 255]; // Neon Crimson / Red
+        return [244, 63, 94, 255]; // Neon Crimson
       case 'Hub Utama':
         return [245, 158, 11, 240]; // Amber Gold
       case 'Feeder':
@@ -49,7 +45,6 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // Marker Radius in Meters
   const getPortRadius = (jenis: string): number => {
     switch (jenis) {
       case 'Central Hub':
@@ -65,7 +60,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // Dynamic 3D Arc Color based on Route Profitability Status
+  // 3D Arc Color based on Route Profitability Status
   const getArcColor = (status?: string): [number, number, number, number] => {
     switch (status) {
       case 'High Profit':
@@ -79,7 +74,6 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // Filter destination ports for ArcLayer
   const arcData = useMemo(() => {
     const destinations = ports.filter(
       (p) => p.nama_pelabuhan !== TANJUNG_PERAK_HUB.nama_pelabuhan
@@ -95,22 +89,21 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     return destinations;
   }, [ports, hoverMode, hoveredPort]);
 
-  // Deck.gl Layers: (1) GeoJsonLayer -> (2) ArcLayer -> (3) ScatterplotLayer
   const layers = [
-    // 1. GEOJSON NEON RADAR LAYER (Indonesia Island Boundaries)
+    // 1. GEOJSON INDONESIA NEON RADAR LAYER
     new GeoJsonLayer({
       id: 'indonesia-geojson-neon',
       data: INDONESIA_GEOJSON_URL,
       filled: true,
       stroked: true,
-      getFillColor: [15, 23, 42, 180], // Slate-900 dengan transparansi
-      getLineColor: [0, 245, 255, 220], // Neon Cyan berkilau
+      getFillColor: [15, 23, 42, 180],
+      getLineColor: [0, 245, 255, 220],
       getLineWidth: 1.5,
       lineWidthUnits: 'pixels',
       pickable: false,
     }),
 
-    // 2. ARC LAYER 3D (Warna sesuai Status Profitability Rute)
+    // 2. ARC LAYER 3D (Warna sesuai Status Profitability)
     new ArcLayer({
       id: 'arc-layer',
       data: arcData,
@@ -126,7 +119,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
       pickable: true,
     }),
 
-    // 3. SCATTERPLOT LAYER (Port Marker Dots)
+    // 3. SCATTERPLOT MARKER LAYER
     new ScatterplotLayer({
       id: 'scatterplot-layer',
       data: ports,
@@ -150,7 +143,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
 
   return (
     <div className="relative w-full h-[580px] rounded-2xl overflow-hidden border border-sky-500/20 shadow-2xl bg-slate-950">
-      {/* Map Top-Left Legend Overlay */}
+      {/* Map Legend Overlay */}
       <div className="absolute top-3 left-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3.5 py-2 flex flex-col gap-1.5 text-xs shadow-lg">
         <div className="flex items-center gap-3 font-semibold text-slate-300 border-b border-slate-800 pb-1">
           <span>Tipe Pelabuhan:</span>
@@ -166,18 +159,18 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> High Profit</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400"></span> Balanced</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400"></span> High Imbalance</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400"></span> Low Profit</span>
           </div>
         </div>
       </div>
 
-      {/* Hover Mode Badge Overlay */}
+      {/* Hover Mode Indicator */}
       <div className="absolute top-3 right-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3 py-1.5 text-[11px] text-cyan-300 shadow-lg flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
         <span>{hoverMode ? '✨ Hover Mode: Aktif' : '🌐 Mode Semua Rute'}</span>
       </div>
 
-      {/* DeckGL Canvas with CartoDB Vector Tile Style & MapLibre */}
+      {/* DeckGL Canvas */}
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
         controller={true}
@@ -187,16 +180,16 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
         <Map mapStyle={CARTO_DARK_MAP_STYLE} />
       </DeckGL>
 
-      {/* Econometric Interactive Hover Tooltip */}
+      {/* Interactive Tooltip Peta */}
       {hoveredPort && (
         <div
-          className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-md text-white min-w-[260px] max-w-xs"
+          className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-md text-white min-w-[270px] max-w-xs"
           style={{
             bottom: '24px',
             left: '24px',
           }}
         >
-          <div className="text-sm font-bold text-sky-400 flex items-center gap-1.5 mb-1">
+          <div className="text-sm font-bold text-sky-400 flex items-center gap-1.5 mb-0.5">
             ⚓ {hoveredPort.nama_pelabuhan}
           </div>
           <div className="text-xs text-slate-400 mb-2">
@@ -226,38 +219,45 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
               </span>
             </div>
 
-            {hoveredPort.total_bongkar_ton !== undefined && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Vol. Bongkar / Muat:</span>
-                  <span className="font-medium text-cyan-300">
-                    {((hoveredPort.total_bongkar_ton + (hoveredPort.total_muat_ton || 0)) / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}rb Ton
-                  </span>
-                </div>
+            {/* Volume Supply vs Demand */}
+            <div className="flex justify-between">
+              <span className="text-slate-400">Vol. Supply vs Demand:</span>
+              <span className="font-medium text-cyan-300">
+                S: {((hoveredPort.net_supply_ton || hoveredPort.total_muat_ton || 0) / 1000).toLocaleString('id-ID', { maximumFractionDigits: 0 })}k | D: {((hoveredPort.net_demand_ton || hoveredPort.total_bongkar_ton || 0) / 1000).toLocaleString('id-ID', { maximumFractionDigits: 0 })}k Ton
+              </span>
+            </div>
 
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Imbalance Ratio:</span>
-                  <span className="font-semibold text-emerald-400">
-                    {hoveredPort.imbalance_ratio?.toFixed(2)}x
-                  </span>
-                </div>
+            {/* Imbalance Ratio */}
+            <div className="flex justify-between">
+              <span className="text-slate-400">Imbalance Ratio (TIR):</span>
+              <span className="font-semibold text-emerald-400">
+                {hoveredPort.imbalance_ratio?.toFixed(2)}x
+              </span>
+            </div>
 
-                {hoveredPort.est_fuel_cost_idr !== undefined && hoveredPort.est_port_cost_idr !== undefined && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Est. Cost (BBM+Port):</span>
-                    <span className="font-semibold text-slate-100">
-                      Rp {((hoveredPort.est_fuel_cost_idr + hoveredPort.est_port_cost_idr) / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt
-                    </span>
-                  </div>
-                )}
-              </>
+            {/* Est. Voyage Cost */}
+            <div className="flex justify-between">
+              <span className="text-slate-400">Est. Voyage Cost:</span>
+              <span className="font-semibold text-slate-100">
+                Rp {(((hoveredPort.est_voyage_cost_idr || ((hoveredPort.est_fuel_cost_idr || 0) + (hoveredPort.est_port_cost_idr || 0)))) / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt
+              </span>
+            </div>
+
+            {/* Struktur Pasar HHI */}
+            {hoveredPort.hhi_market_status && (
+              <div className="flex justify-between">
+                <span className="text-slate-400">Struktur Pasar (HHI):</span>
+                <span className="font-medium text-purple-300">
+                  {hoveredPort.hhi_market_status}
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Profitability Status Badge */}
+          {/* Status Profitabilitas Badge */}
           {hoveredPort.status_profitability && (
             <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">Status Rute:</span>
+              <span className="text-[11px] text-slate-400">Status Profitabilitas:</span>
               <span
                 className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
                   hoveredPort.status_profitability === 'High Profit'

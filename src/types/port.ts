@@ -28,12 +28,20 @@ export interface Port {
   jarak_nm?: number;
   total_bongkar_ton?: number;
   total_muat_ton?: number;
+  net_supply_ton?: number;
+  net_demand_ton?: number;
   trip_count?: number;
   imbalance_ratio?: number;
   port_stay_hours?: number;
   est_fuel_cost_idr?: number;
   est_port_cost_idr?: number;
+  est_lubricant_cost_idr?: number;
+  est_voyage_cost_idr?: number;
+  market_share_pct?: number;
+  hhi_index?: number;
+  hhi_market_status?: string;
   gravity_score?: number;
+  profitability_index?: number;
   status_profitability?: StatusProfitability;
 }
 

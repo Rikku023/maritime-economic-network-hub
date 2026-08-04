@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
-import { ArcLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ArcLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { Map } from 'react-map-gl/maplibre';
 import { Port } from '@/types/port';
 import { TANJUNG_PERAK_HUB, calculateHaversineNM } from '@/lib/distance';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -21,18 +22,26 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
+// CDN GeoJSON Data Daratan Indonesia
+const INDONESIA_GEOJSON_URL =
+  'https://raw.githubusercontent.com/superpika/indonesia-geojson/master/indonesia.geojson';
+
+// CartoDB Dark Matter Free Vector Tile Style JSON
+const CARTO_DARK_MAP_STYLE =
+  'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
 export default function MapComponent({ ports, hoverMode }: MapProps) {
   const [hoveredPort, setHoveredPort] = useState<Port | null>(null);
 
-  // Define Colors for Port Markers [R, G, B, A]
+  // Define Marker Colors [R, G, B, A]
   const getPortColor = (jenis: string): [number, number, number, number] => {
     switch (jenis) {
       case 'Central Hub':
-        return [244, 63, 94, 255]; // Neon Crimson
+        return [244, 63, 94, 255]; // Neon Crimson / Red
       case 'Hub Utama':
         return [245, 158, 11, 240]; // Amber Gold
       case 'Feeder':
-        return [0, 229, 255, 220]; // Cyan
+        return [0, 229, 255, 220]; // Neon Cyan
       case 'Penyeberangan':
         return [16, 185, 129, 220]; // Emerald Green
       default:
@@ -40,7 +49,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // Define Radius in Meters for Scatterplot
+  // Define Marker Radius in Meters
   const getPortRadius = (jenis: string): number => {
     switch (jenis) {
       case 'Central Hub':
@@ -56,7 +65,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // Filter destination ports for ArcLayer (excluding Tanjung Perak itself)
+  // Filter destination ports for ArcLayer
   const arcData = useMemo(() => {
     const destinations = ports.filter(
       (p) => p.nama_pelabuhan !== TANJUNG_PERAK_HUB.nama_pelabuhan
@@ -73,9 +82,22 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     return destinations;
   }, [ports, hoverMode, hoveredPort]);
 
-  // Deck.gl Layers
+  // Deck.gl Layers in Order: (1) GeoJsonLayer -> (2) ArcLayer -> (3) ScatterplotLayer
   const layers = [
-    // 1. ArcLayer 3D (Curved shiny lines from Tanjung Perak to target ports)
+    // 1. GEOJSON NEON RADAR LAYER (Indonesia Island Boundaries & Landmass)
+    new GeoJsonLayer({
+      id: 'indonesia-geojson-neon',
+      data: INDONESIA_GEOJSON_URL,
+      filled: true,
+      stroked: true,
+      getFillColor: [15, 23, 42, 180], // Slate-900 dengan transparansi
+      getLineColor: [0, 245, 255, 220], // Neon Cyan berkilau
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      pickable: false,
+    }),
+
+    // 2. ARC LAYER (3D Route Lines from Tanjung Perak Hub)
     new ArcLayer({
       id: 'arc-layer',
       data: arcData,
@@ -84,14 +106,14 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
         TANJUNG_PERAK_HUB.latitude,
       ],
       getTargetPosition: (d: Port) => [d.longitude, d.latitude],
-      getSourceColor: [0, 229, 255, 180], // Neon Cyan origin
+      getSourceColor: [0, 245, 255, 200], // Neon Cyan origin
       getTargetColor: [245, 158, 11, 240], // Neon Gold destination
       getWidth: 3.5,
       greatCircle: true,
       pickable: true,
     }),
 
-    // 2. ScatterplotLayer for Port Markers
+    // 3. SCATTERPLOT LAYER (Port Marker Dots)
     new ScatterplotLayer({
       id: 'scatterplot-layer',
       data: ports,
@@ -115,7 +137,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
 
   return (
     <div className="relative w-full h-[580px] rounded-2xl overflow-hidden border border-sky-500/20 shadow-2xl bg-slate-950">
-      {/* Map Header Overlay Legend */}
+      {/* Map Top-Left Legend Overlay */}
       <div className="absolute top-3 left-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3.5 py-2 flex items-center gap-4 text-xs shadow-lg">
         <div className="flex items-center gap-1.5 text-slate-300">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500"></span>
@@ -135,20 +157,25 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
         </div>
       </div>
 
-      {/* Hover Status Indicator */}
-      <div className="absolute top-3 right-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3 py-1.5 text-[11px] text-cyan-300 shadow-lg">
-        {hoverMode ? '✨ Hover Mode: Aktif' : '🌐 Mode Semua Rute'}
+      {/* Hover Mode Badge Overlay */}
+      <div className="absolute top-3 right-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3 py-1.5 text-[11px] text-cyan-300 shadow-lg flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        <span>{hoverMode ? '✨ Hover Mode: Aktif' : '🌐 Mode Semua Rute'}</span>
       </div>
 
-      {/* DeckGL Component */}
+      {/* DeckGL Canvas with CartoDB MapLibre Basemap */}
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
         controller={true}
         layers={layers}
         style={{ position: 'relative', width: '100%', height: '100%' }}
-      />
+      >
+        <Map
+          mapStyle={CARTO_DARK_MAP_STYLE}
+        />
+      </DeckGL>
 
-      {/* Interactive Floating Hover Tooltip */}
+      {/* Interactive Hover Tooltip */}
       {hoveredPort && (
         <div
           className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-3.5 shadow-2xl backdrop-blur-md text-white max-w-xs"

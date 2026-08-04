@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
       if (analytics) {
         return {
           ...port,
+          jarak_round_trip_nm: analytics.jarak_round_trip_nm || (port.jarak_nm ? port.jarak_nm * 2 : 0),
+          sea_time_hours_pp: analytics.sea_time_hours_pp,
+          port_stay_hours_pp: analytics.port_stay_hours_pp,
           total_bongkar_ton: analytics.total_bongkar_ton,
           total_muat_ton: analytics.total_muat_ton,
           net_supply_ton: analytics.net_supply_ton,
@@ -45,7 +48,10 @@ export async function GET(request: NextRequest) {
           status_profitability: analytics.status_profitability as StatusProfitability,
         };
       }
-      return port;
+      return {
+        ...port,
+        jarak_round_trip_nm: port.jarak_nm ? port.jarak_nm * 2 : 0,
+      };
     });
 
     if (wilayahParam) {
@@ -80,6 +86,7 @@ export async function GET(request: NextRequest) {
       hub: {
         ...TANJUNG_PERAK_HUB,
         jarak_nm: 0,
+        jarak_round_trip_nm: 0,
       },
       total: ports.length,
       data: ports,

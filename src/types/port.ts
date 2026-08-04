@@ -26,6 +26,9 @@ export interface Port {
   latitude: number;
   longitude: number;
   jarak_nm?: number;
+  jarak_round_trip_nm?: number;
+  sea_time_hours_pp?: number;
+  port_stay_hours_pp?: number;
   total_bongkar_ton?: number;
   total_muat_ton?: number;
   net_supply_ton?: number;

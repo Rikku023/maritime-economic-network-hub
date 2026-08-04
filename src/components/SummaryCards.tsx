@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Port } from '@/types/port';
-import { Ship, TrendingUp, Scale, PackageCheck } from 'lucide-react';
+import { Ship, TrendingUp, DollarSign, PackageCheck } from 'lucide-react';
 
 interface SummaryCardsProps {
   ports: Port[];
@@ -10,21 +10,20 @@ interface SummaryCardsProps {
 }
 
 export default function SummaryCards({ ports, totalPortsCount }: SummaryCardsProps) {
-  // Exclude Tanjung Perak central hub for trade imbalance & destination metrics
   const destinations = ports.filter((p) => p.jenis !== 'Central Hub');
 
-  // Count High Profit Routes
+  // Count High Profit Routes Round Trip
   const highProfitCount = destinations.filter(
     (p) => p.status_profitability === 'High Profit'
   ).length;
 
-  // Average Trade Imbalance Ratio
-  const validImbalancePorts = destinations.filter(
-    (p) => p.imbalance_ratio !== undefined && p.imbalance_ratio !== null
+  // Average Voyage Cost Round Trip (PP)
+  const validCostPorts = destinations.filter(
+    (p) => p.est_voyage_cost_idr !== undefined && p.est_voyage_cost_idr > 0
   );
-  const avgImbalance = validImbalancePorts.length
-    ? validImbalancePorts.reduce((sum, p) => sum + (p.imbalance_ratio || 0), 0) /
-      validImbalancePorts.length
+  const avgCostPP = validCostPorts.length
+    ? validCostPorts.reduce((sum, p) => sum + (p.est_voyage_cost_idr || 0), 0) /
+      validCostPorts.length
     : 0;
 
   // Total Logistics Cargo Volume in Tons
@@ -39,7 +38,7 @@ export default function SummaryCards({ ports, totalPortsCount }: SummaryCardsPro
       <div className="bg-slate-900/80 border border-sky-500/20 rounded-2xl p-5 shadow-lg shadow-black/40 backdrop-blur-md hover:border-sky-500/40 transition-all group">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Total Pelabuhan Terkoneksi
+            Pelabuhan Terkoneksi
           </span>
           <div className="p-2 bg-sky-500/10 rounded-xl border border-sky-500/20 text-sky-400 group-hover:scale-110 transition-transform">
             <Ship className="w-5 h-5" />
@@ -51,16 +50,16 @@ export default function SummaryCards({ ports, totalPortsCount }: SummaryCardsPro
             / {totalPortsCount} Total
           </span>
         </div>
-        <p className="text-xs text-sky-400 font-medium flex items-center gap-1">
-          <span>Central Hub:</span> Tanjung Perak (Surabaya)
+        <p className="text-xs text-sky-400 font-medium truncate">
+          Central Hub: Tanjung Perak (Surabaya)
         </p>
       </div>
 
-      {/* Metric 2: Rute Paling Menguntungkan */}
+      {/* Metric 2: Rute Paling Menguntungkan PP */}
       <div className="bg-slate-900/80 border border-sky-500/20 rounded-2xl p-5 shadow-lg shadow-black/40 backdrop-blur-md hover:border-sky-500/40 transition-all group">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Rute Paling Menguntungkan
+            Rute High Profit (PP)
           </span>
           <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
             <TrendingUp className="w-5 h-5" />
@@ -68,36 +67,40 @@ export default function SummaryCards({ ports, totalPortsCount }: SummaryCardsPro
         </div>
         <div className="text-2xl lg:text-3xl font-extrabold text-white mb-1">
           {highProfitCount}{' '}
-          <span className="text-xs font-normal text-emerald-400">Rute High Profit</span>
+          <span className="text-xs font-normal text-emerald-400">Rute PP</span>
         </div>
         <p className="text-xs text-emerald-400 font-medium truncate">
-          Rute dengan volume & neraca seimbang
+          Round Trip Profitability Index (PI &ge; 1.3)
         </p>
       </div>
 
-      {/* Metric 3: Rata-Rata Trade Imbalance */}
+      {/* Metric 3: Rata-Rata Cost Round Trip (PP) */}
       <div className="bg-slate-900/80 border border-sky-500/20 rounded-2xl p-5 shadow-lg shadow-black/40 backdrop-blur-md hover:border-sky-500/40 transition-all group">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Rata-Rata Trade Imbalance
+            Rata-Rata Cost PP
           </span>
           <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
-            <Scale className="w-5 h-5" />
+            <DollarSign className="w-5 h-5" />
           </div>
         </div>
         <div className="text-2xl lg:text-3xl font-extrabold text-white mb-1">
-          {avgImbalance.toFixed(2)}x
+          Rp {(avgCostPP / 1000000).toLocaleString('id-ID', {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })}{' '}
+          <span className="text-xs font-normal text-amber-300">Jt</span>
         </div>
         <p className="text-xs text-amber-400 font-medium truncate">
-          Rasio Muat / Bongkar rata-rata
+          Rata-rata Est. Voyage Cost Round Trip
         </p>
       </div>
 
-      {/* Metric 4: Estimasi Total Vol. Logistik */}
+      {/* Metric 4: Total Logistik Volume */}
       <div className="bg-slate-900/80 border border-sky-500/20 rounded-2xl p-5 shadow-lg shadow-black/40 backdrop-blur-md hover:border-sky-500/40 transition-all group">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Estimasi Vol. Logistik
+            Total Vol. Logistik
           </span>
           <div className="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-cyan-400 group-hover:scale-110 transition-transform">
             <PackageCheck className="w-5 h-5" />
@@ -110,7 +113,7 @@ export default function SummaryCards({ ports, totalPortsCount }: SummaryCardsPro
           })}{' '}
           <span className="text-xs font-normal text-cyan-300">Juta Ton</span>
         </div>
-        <p className="text-xs text-cyan-400 font-medium">
+        <p className="text-xs text-cyan-400 font-medium truncate">
           Total Akumulasi Bongkar & Muat
         </p>
       </div>

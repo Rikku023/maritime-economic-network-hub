@@ -43,7 +43,7 @@ def load_ports_from_ts(ts_path):
 
 
 def main():
-    print("🚀 Memulai Script ETL & Analisis Ekonometrika Maritim Indonesia...")
+    print("🚀 Memulai Script ETL & Analisis Ekonometrika Maritim ROUND TRIP (PULANG-PERGI / PP)...")
     
     # 1. Load Parquet Datasets menggunakan Polars
     print("📦 Memuat file Parquet dari:", INPUT_DIR)
@@ -66,10 +66,10 @@ def main():
     print(f"✅ PDRB_ADHK: {len(df_pdrb):,} baris")
     print(f"✅ JUMLAH_PENDUDUK: {len(df_pop)} baris")
 
-    # 2. Olah Dataset LK3-SUP (Bongkar/Muat Ton/M3, Port Stay Time, Trip Count)
+    # 2. Olah Dataset LK3-SUP
     print("⚓ Mengolah data operasional pelabuhan (LK3-SUP)...")
 
-    # Calculate Stay Hours
+    # Calculate Stay Hours per single leg
     df_lk3 = df_lk3.with_columns([
         ((pl.col('TANGGAL BERANGKAT') - pl.col('TANGGAL TIBA')).dt.total_seconds() / 3600.0).alias('stay_hours')
     ])
@@ -102,21 +102,20 @@ def main():
         if name_clean:
             dest_metrics_map[name_clean] = row
 
-    # 3. Parameters dari KAPAL.parquet & Biaya Operasional
-    # Standard vessel constants from KAPAL.parquet averages
+    # 3. Parameters dari KAPAL.parquet & Biaya Operasional ROUND TRIP (PP)
     BBM_PRICE_PER_LITER = 15000.0
-    AVG_ME_CONS_LPH = 28.5  # Main Engine L/hr
-    AVG_AE_CONS_LPH = 11.5  # Auxiliary Engine L/hr
-    AVG_SPEED_KNOTS = 12.0  # Kecepatan knot
-    AVG_BASE_PORT_CHARGE = 3250000.0  # Jasa Labuh, Tambat, Dermaga, Pandu, Tunda
+    AVG_ME_CONS_LPH = 28.5        # Main Engine L/hr
+    AVG_AE_CONS_LPH = 11.5        # Auxiliary Engine L/hr
+    AVG_SPEED_KNOTS = 12.0        # Kecepatan (Knot)
+    SINGLE_PORT_CHARGE = 3250000.0 # Port Charge per Kunjungan Pelabuhan
     STAY_HOURLY_PORT_FEE = 85000.0
-    LUBRICANT_BASE_COST = 450000.0    # Biaya Pelumas LO Cost
+    LO_ME_HOURLY = 12500.0        # Biaya Pelumas ME per jam berlayar
+    LO_AE_HOURLY = 5500.0         # Biaya Pelumas AE per jam sandar
 
     # 4. Load Master Ports dari ports.ts
     master_ports = load_ports_from_ts(PORTS_TS_FILE)
     print(f"🗺️ Master pelabuhan terload dari ports.ts: {len(master_ports)} pelabuhan")
 
-    # Haversine Distance (NM) dari Surabaya Tanjung Perak [-7.2, 112.7333]
     HUB_LAT = -7.2
     HUB_LON = 112.7333
 
@@ -157,7 +156,7 @@ def main():
         'Maluku-Papua': 9000000
     }
 
-    # 5. Konstruksi Hasil Analisis JSON Ekonometrika
+    # 5. Konstruksi Hasil Analisis JSON Ekonometrika ROUND TRIP (PP)
     routes_analytics = []
     total_cargo_volume = 0.0
     high_profit_count = 0
@@ -166,8 +165,11 @@ def main():
 
     for port in master_ports:
         port_name = port['nama_pelabuhan']
-        dist_nm = round(get_haversine_nm(port['latitude'], port['longitude']), 2)
+        dist_single_nm = round(get_haversine_nm(port['latitude'], port['longitude']), 2)
         
+        # 🔄 JARAK ROUND TRIP (PULANG-PERGI / PP) = 2 x Single Distance
+        dist_pp_nm = round(2.0 * dist_single_nm, 2)
+
         # Match metrics from LK3
         matched = find_lk3_metrics(port_name)
         
@@ -175,16 +177,16 @@ def main():
             b_ton = float(matched['total_bongkar_ton'] or 0.0)
             m_ton = float(matched['total_muat_ton'] or 0.0)
             trips = int(matched['trip_count'] or 1)
-            stay_h = float(matched['avg_stay_hours'] or 48.0)
+            single_stay_h = float(matched['avg_stay_hours'] or 48.0)
         else:
             if port['jenis'] == 'Central Hub':
-                b_ton, m_ton, trips, stay_h = 35000000.0, 28000000.0, 25000, 72.0
+                b_ton, m_ton, trips, single_stay_h = 35000000.0, 28000000.0, 25000, 72.0
             elif port['jenis'] == 'Hub Utama':
-                b_ton, m_ton, trips, stay_h = 18500000.0, 14200000.0, 14000, 96.0
+                b_ton, m_ton, trips, single_stay_h = 18500000.0, 14200000.0, 14000, 96.0
             elif port['jenis'] == 'Penyeberangan':
-                b_ton, m_ton, trips, stay_h = 4200000.0, 4800000.0, 8500, 24.0
+                b_ton, m_ton, trips, single_stay_h = 4200000.0, 4800000.0, 8500, 24.0
             else:
-                b_ton, m_ton, trips, stay_h = 1250000.0, 890000.0, 2400, 60.0
+                b_ton, m_ton, trips, single_stay_h = 1250000.0, 890000.0, 2400, 60.0
 
         # Net Supply & Net Demand
         net_supply_ton = round(m_ton, 2)
@@ -193,26 +195,33 @@ def main():
         # Trade Imbalance Ratio (TIR) = (Total Volume Muat) / (Total Volume Bongkar)
         imbalance_ratio = round(m_ton / (b_ton + 1e-5), 3) if b_ton > 0 else 1.0
 
-        # Sailing Hours (Distance / Speed)
-        sailing_hours = max(dist_nm / AVG_SPEED_KNOTS, 1.0)
+        # 🔄 SEA TIME PP (Jam) = Jarak_PP / Kecepatan_Knot
+        sea_time_pp_hours = round(max(dist_pp_nm / AVG_SPEED_KNOTS, 2.0), 2)
 
-        # Biaya BBM ME (Sailing)
-        me_fuel_cost = sailing_hours * AVG_ME_CONS_LPH * BBM_PRICE_PER_LITER
+        # 🔄 PORT STAY PP (Jam) = 2 x Single Stay Hours (Sandar di Asal & Tujuan)
+        port_stay_pp_hours = round(2.0 * single_stay_h, 2)
 
-        # Biaya BBM AE (Port Stay)
-        ae_fuel_cost = stay_h * AVG_AE_CONS_LPH * BBM_PRICE_PER_LITER
+        # 🔄 BIAYA BBM ME (Sailing) PP
+        me_fuel_cost_pp = sea_time_pp_hours * AVG_ME_CONS_LPH * BBM_PRICE_PER_LITER
 
-        # Total Fuel Cost
-        fuel_cost_idr = round(me_fuel_cost + ae_fuel_cost, 2)
+        # 🔄 BIAYA BBM AE (Port Stay) PP
+        ae_fuel_cost_pp = port_stay_pp_hours * AVG_AE_CONS_LPH * BBM_PRICE_PER_LITER
 
-        # Total Port Charges (Labuh, Tambat, Dermaga, Pandu, Tunda)
-        port_cost_idr = round(AVG_BASE_PORT_CHARGE + (stay_h * STAY_HOURLY_PORT_FEE), 2)
+        # Total Fuel Cost PP
+        fuel_cost_pp_idr = round(me_fuel_cost_pp + ae_fuel_cost_pp, 2)
 
-        # Biaya Pelumas (Lubricant LO Cost)
-        lubricant_cost_idr = round(LUBRICANT_BASE_COST + (stay_h * 15000.0), 2)
+        # 🔄 PORT CHARGES PP = 2 x Port Charges (Kunjungan Asal + Tujuan)
+        port_cost_pp_idr = round(2.0 * (SINGLE_PORT_CHARGE + (single_stay_h * STAY_HOURLY_PORT_FEE)), 2)
 
-        # Total Voyage Cost (C_voyage)
-        voyage_cost_idr = round(fuel_cost_idr + port_cost_idr + lubricant_cost_idr, 2)
+        # 🔄 BIAYA PELUMAS (LO COST) PP = (Sea Time PP x LO ME) + (Port Stay PP x LO AE)
+        lubricant_cost_pp_idr = round(
+            (sea_time_pp_hours * LO_ME_HOURLY) + (port_stay_pp_hours * LO_AE_HOURLY), 2
+        )
+
+        # 🔄 ESTIMASI VOYAGE COST ROUND TRIP (C_voyage PP)
+        voyage_cost_pp_idr = round(
+            fuel_cost_pp_idr + port_cost_pp_idr + lubricant_cost_pp_idr, 2
+        )
 
         # Market Share & HHI Index
         total_vol = b_ton + m_ton
@@ -229,15 +238,14 @@ def main():
         # Gravity Score (Potensi Pasar Macro Index)
         reg_pdrb = pdrb_map.get(port['wilayah'], 500000.0)
         reg_pop = pop_map.get(port['wilayah'], 10000000)
-        raw_gravity = (math.log10(reg_pdrb) * math.log10(reg_pop)) / (math.pow(dist_nm / 100.0, 1.2) + 1.0)
+        raw_gravity = (math.log10(reg_pdrb) * math.log10(reg_pop)) / (math.pow(dist_single_nm / 100.0, 1.2) + 1.0)
         gravity_score = round(min(max(raw_gravity * 15.5, 12.0), 99.5), 2)
 
-        # Profitability Index (PI) Calculation
-        # PI = Revenue / Voyage Cost factor scaled with trade balance
-        base_revenue_est = (total_vol * 125.0) / (trips + 10)
-        pi_ratio = round(base_revenue_est / (voyage_cost_idr / 500.0), 2)
+        # Profitability Index (PI) Calculation Round Trip
+        base_revenue_est_pp = (total_vol * 220.0) / (trips + 10)
+        pi_ratio = round(base_revenue_est_pp / (voyage_cost_pp_idr / 500.0), 2)
 
-        # Profitability Status Logic
+        # Profitability Status Logic Round Trip
         if pi_ratio >= 1.3:
             status_profit = "High Profit"
             high_profit_count += 1
@@ -258,18 +266,20 @@ def main():
             "jenis": port['jenis'],
             "latitude": port['latitude'],
             "longitude": port['longitude'],
-            "jarak_nm": dist_nm,
+            "jarak_nm": dist_single_nm,
+            "jarak_round_trip_nm": dist_pp_nm,
+            "sea_time_hours_pp": sea_time_pp_hours,
+            "port_stay_hours_pp": port_stay_pp_hours,
             "total_bongkar_ton": round(b_ton, 2),
             "total_muat_ton": round(m_ton, 2),
             "net_supply_ton": net_supply_ton,
             "net_demand_ton": net_demand_ton,
             "trip_count": trips,
             "imbalance_ratio": imbalance_ratio,
-            "port_stay_hours": round(stay_h, 2),
-            "est_fuel_cost_idr": fuel_cost_idr,
-            "est_port_cost_idr": port_cost_idr,
-            "est_lubricant_cost_idr": lubricant_cost_idr,
-            "est_voyage_cost_idr": voyage_cost_idr,
+            "est_fuel_cost_idr": fuel_cost_pp_idr,
+            "est_port_cost_idr": port_cost_pp_idr,
+            "est_lubricant_cost_idr": lubricant_cost_pp_idr,
+            "est_voyage_cost_idr": voyage_cost_pp_idr,
             "market_share_pct": market_share_pct,
             "hhi_index": hhi_index,
             "hhi_market_status": hhi_market_status,
@@ -284,6 +294,7 @@ def main():
     final_output = {
         "metadata": {
             "generated_at": datetime.now().isoformat(),
+            "calculation_mode": "ROUND TRIP (PULANG-PERGI / PP)",
             "total_routes": len(routes_analytics),
             "central_hub": "Pelabuhan Tanjung Perak (Surabaya)",
             "summary_metrics": {
@@ -303,8 +314,8 @@ def main():
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(final_output, f, indent=2, ensure_ascii=False)
 
-    print(f"\n🎉 Selesai! File JSON analisis rute ekonometrika berhasil diekspor ke:\n➡️ {OUTPUT_FILE}")
-    print(f"📊 Ringkasan Data:")
+    print(f"\n🎉 Selesai! File JSON analisis rute ROUND TRIP (PP) berhasil diekspor ke:\n➡️ {OUTPUT_FILE}")
+    print(f"📊 Ringkasan Data Round Trip:")
     print(f"   - Total Rute Pelabuhan : {len(routes_analytics)}")
     print(f"   - High Profit (PI >= 1.3)          : {high_profit_count}")
     print(f"   - Balanced (1.0 <= PI < 1.3)        : {balanced_count}")

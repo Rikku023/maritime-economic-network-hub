@@ -60,7 +60,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
     }
   };
 
-  // 3D Arc Color based on Route Profitability Status
+  // 3D Arc Color based on Round Trip Profitability Status
   const getArcColor = (status?: string): [number, number, number, number] => {
     switch (status) {
       case 'High Profit':
@@ -103,7 +103,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
       pickable: false,
     }),
 
-    // 2. ARC LAYER 3D (Warna sesuai Status Profitability)
+    // 2. ARC LAYER 3D (Round Trip Profitability Colors)
     new ArcLayer({
       id: 'arc-layer',
       data: arcData,
@@ -163,7 +163,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-300 font-medium">
-          <span className="text-slate-400">Profitabilitas Rute:</span>
+          <span className="text-slate-400">Profitabilitas (PP):</span>
           <div className="flex items-center gap-2.5">
             <span className="flex items-center gap-1.5 text-emerald-300 font-medium">
               <span className="w-2.5 h-2.5 rounded-full bg-[#00ff80] inline-block shadow-sm"></span> High Profit
@@ -188,10 +188,10 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
         <Map mapStyle={CARTO_DARK_MAP_STYLE} />
       </DeckGL>
 
-      {/* Interactive Tooltip Peta */}
+      {/* Interactive Tooltip Peta Round Trip */}
       {hoveredPort && (
         <div
-          className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-md text-white min-w-[270px] max-w-xs"
+          className="absolute z-20 pointer-events-none bg-slate-950/95 border border-sky-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-md text-white min-w-[280px] max-w-xs"
           style={{
             bottom: '24px',
             left: '24px',
@@ -206,7 +206,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
 
           <div className="h-px bg-slate-800 my-2"></div>
 
-          {/* Econometric Metrics Details */}
+          {/* Round Trip Econometric Metrics */}
           <div className="space-y-1.5 text-xs text-slate-300">
             <div className="flex justify-between">
               <span className="text-slate-400">Tipe Pelabuhan:</span>
@@ -214,16 +214,16 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
             </div>
             
             <div className="flex justify-between">
-              <span className="text-slate-400">Jarak dari Perak:</span>
+              <span className="text-slate-400">Jarak Round Trip (PP):</span>
               <span className="font-semibold text-amber-400">
-                {hoveredPort.jarak_nm !== undefined
-                  ? `${hoveredPort.jarak_nm.toLocaleString('id-ID')} NM`
-                  : `${calculateHaversineNM(
+                {hoveredPort.jarak_round_trip_nm !== undefined
+                  ? `${hoveredPort.jarak_round_trip_nm.toLocaleString('id-ID')} NM`
+                  : `${(calculateHaversineNM(
                       TANJUNG_PERAK_HUB.latitude,
                       TANJUNG_PERAK_HUB.longitude,
                       hoveredPort.latitude,
                       hoveredPort.longitude
-                    )} NM`}
+                    ) * 2).toLocaleString('id-ID')} NM`}
               </span>
             </div>
 
@@ -243,29 +243,27 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
               </span>
             </div>
 
-            {/* Est. Voyage Cost */}
+            {/* Est. Voyage Cost Round Trip */}
             <div className="flex justify-between">
-              <span className="text-slate-400">Est. Voyage Cost:</span>
+              <span className="text-slate-400">Est. Voyage Cost (PP):</span>
               <span className="font-semibold text-slate-100">
                 Rp {(((hoveredPort.est_voyage_cost_idr || ((hoveredPort.est_fuel_cost_idr || 0) + (hoveredPort.est_port_cost_idr || 0)))) / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} Jt
               </span>
             </div>
 
-            {/* Struktur Pasar HHI */}
-            {hoveredPort.hhi_market_status && (
-              <div className="flex justify-between">
-                <span className="text-slate-400">Struktur Pasar (HHI):</span>
-                <span className="font-medium text-purple-300">
-                  {hoveredPort.hhi_market_status}
-                </span>
-              </div>
-            )}
+            {/* Market Share & HHI Status */}
+            <div className="flex justify-between">
+              <span className="text-slate-400">Market Share (HHI):</span>
+              <span className="font-medium text-purple-300">
+                {hoveredPort.market_share_pct?.toFixed(1)}% ({hoveredPort.hhi_market_status || 'Oligopoly'})
+              </span>
+            </div>
           </div>
 
-          {/* Status Profitabilitas Badge */}
+          {/* Round Trip Profitability Badge */}
           {hoveredPort.status_profitability && (
             <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">Status Profitabilitas:</span>
+              <span className="text-[11px] text-slate-400">Profitabilitas (PP):</span>
               <span
                 className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
                   hoveredPort.status_profitability === 'High Profit'

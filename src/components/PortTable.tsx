@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Port } from '@/types/port';
-import { formatDistance } from '@/lib/utils';
 import { ArrowUpDown, Download, Anchor } from 'lucide-react';
 
 interface PortTableProps {
@@ -14,7 +13,7 @@ type SortField =
   | 'lokasi'
   | 'wilayah'
   | 'jenis'
-  | 'jarak_nm'
+  | 'jarak_round_trip_nm'
   | 'imbalance_ratio'
   | 'est_voyage_cost_idr'
   | 'market_share_pct'
@@ -23,7 +22,7 @@ type SortField =
 type SortOrder = 'asc' | 'desc';
 
 export default function PortTable({ ports }: PortTableProps) {
-  const [sortField, setSortField] = useState<SortField>('jarak_nm');
+  const [sortField, setSortField] = useState<SortField>('jarak_round_trip_nm');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   const handleSort = (field: SortField) => {
@@ -39,8 +38,14 @@ export default function PortTable({ ports }: PortTableProps) {
     let valA = a[sortField];
     let valB = b[sortField];
 
-    if (valA === undefined) valA = 0;
-    if (valB === undefined) valB = 0;
+    if (valA === undefined) {
+      if (sortField === 'jarak_round_trip_nm') valA = (a.jarak_nm || 0) * 2;
+      else valA = 0;
+    }
+    if (valB === undefined) {
+      if (sortField === 'jarak_round_trip_nm') valB = (b.jarak_nm || 0) * 2;
+      else valB = 0;
+    }
 
     if (typeof valA === 'string' && typeof valB === 'string') {
       return sortOrder === 'asc'
@@ -64,14 +69,15 @@ export default function PortTable({ ports }: PortTableProps) {
       'Tipe Pelabuhan',
       'Latitude',
       'Longitude',
-      'Jarak dari Perak (NM)',
+      'Jarak Single (NM)',
+      'Jarak Round Trip PP (NM)',
       'Total Bongkar (Ton)',
       'Total Muat (Ton)',
-      'Imbalance Ratio',
-      'Est. Voyage Cost (IDR)',
+      'Imbalance Ratio (TIR)',
+      'Est. Voyage Cost PP (IDR)',
       'Market Share (%)',
       'Struktur Pasar HHI',
-      'Status Profitability',
+      'Status Profitability PP',
     ];
 
     const rows = sortedPorts.map((p) => [
@@ -83,6 +89,7 @@ export default function PortTable({ ports }: PortTableProps) {
       p.latitude,
       p.longitude,
       p.jarak_nm || 0,
+      p.jarak_round_trip_nm || (p.jarak_nm ? p.jarak_nm * 2 : 0),
       p.total_bongkar_ton || 0,
       p.total_muat_ton || 0,
       p.imbalance_ratio || 0,
@@ -101,7 +108,7 @@ export default function PortTable({ ports }: PortTableProps) {
     link.setAttribute('href', encodedUri);
     link.setAttribute(
       'download',
-      `analisis_ekonometrika_maritim_${new Date().toISOString().slice(0, 10)}.csv`
+      `analisis_ekonometrika_round_trip_pp_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -145,10 +152,10 @@ export default function PortTable({ ports }: PortTableProps) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 border-b border-slate-800 pb-4">
         <div>
           <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Anchor className="w-5 h-5 text-sky-400" /> Data Analisis Ekonometrika & Struktur Pasar Rute
+            <Anchor className="w-5 h-5 text-sky-400" /> Data Analisis Ekonometrika Round Trip (PP)
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Metrik operasional maritim, Imbalance Ratio, Est. Voyage Cost, Market Share (%), Struktur Pasar HHI & Profitability Badge
+            Kalkulasi Skenario Pulang-Pergi (PP): Jarak PP (NM), Est. Voyage Cost PP, Imbalance Ratio (TIR), Market Share (%), dan Profitability Status
           </p>
         </div>
 
@@ -202,11 +209,11 @@ export default function PortTable({ ports }: PortTableProps) {
                 </div>
               </th>
               <th
-                onClick={() => handleSort('jarak_nm')}
+                onClick={() => handleSort('jarak_round_trip_nm')}
                 className="py-3.5 px-4 cursor-pointer hover:text-amber-400 transition-colors select-none text-right"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>Jarak (NM)</span>
+                  <span>Jarak PP (NM)</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -224,7 +231,7 @@ export default function PortTable({ ports }: PortTableProps) {
                 className="py-3.5 px-4 cursor-pointer hover:text-cyan-400 transition-colors select-none text-right"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>Est. Voyage Cost</span>
+                  <span>Est. Cost PP</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -242,7 +249,7 @@ export default function PortTable({ ports }: PortTableProps) {
                 className="py-3.5 px-4 cursor-pointer hover:text-sky-400 transition-colors select-none text-center"
               >
                 <div className="flex items-center justify-center gap-1.5">
-                  <span>Profitability Status</span>
+                  <span>Profitability Status (PP)</span>
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -252,7 +259,8 @@ export default function PortTable({ ports }: PortTableProps) {
             {sortedPorts.length > 0 ? (
               sortedPorts.map((port) => {
                 const isCentralHub = port.jenis === 'Central Hub';
-                const voyageCost = port.est_voyage_cost_idr || ((port.est_fuel_cost_idr || 0) + (port.est_port_cost_idr || 0));
+                const distPP = port.jarak_round_trip_nm || (port.jarak_nm ? port.jarak_nm * 2 : 0);
+                const voyageCostPP = port.est_voyage_cost_idr || ((port.est_fuel_cost_idr || 0) + (port.est_port_cost_idr || 0));
 
                 return (
                   <tr
@@ -284,15 +292,15 @@ export default function PortTable({ ports }: PortTableProps) {
                         {port.jenis}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right font-bold text-amber-400">
-                      {formatDistance(port.jarak_nm)}
+                    <td className="py-3 px-4 text-right font-bold text-amber-400 font-mono">
+                      {distPP > 0 ? `${distPP.toLocaleString('id-ID')} NM` : '0 NM'}
                     </td>
                     <td className="py-3 px-4 text-right font-semibold text-emerald-400 font-mono">
                       {port.imbalance_ratio !== undefined ? `${port.imbalance_ratio.toFixed(2)}x` : '-'}
                     </td>
                     <td className="py-3 px-4 text-right font-medium text-slate-200 font-mono">
-                      {voyageCost !== undefined && voyageCost > 0
-                        ? `Rp ${(voyageCost / 1000000).toLocaleString('id-ID', {
+                      {voyageCostPP !== undefined && voyageCostPP > 0
+                        ? `Rp ${(voyageCostPP / 1000000).toLocaleString('id-ID', {
                             maximumFractionDigits: 1,
                           })} Jt`
                         : '-'}

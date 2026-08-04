@@ -108,6 +108,37 @@ export default function PortTable({ ports }: PortTableProps) {
     document.body.removeChild(link);
   };
 
+  const getTipeBadgeStyle = (jenis: string) => {
+    const j = (jenis || '').toLowerCase().trim();
+    if (j.includes('central')) {
+      return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+    }
+    if (j.includes('utama')) {
+      return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+    }
+    if (j.includes('feeder')) {
+      return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+    }
+    if (j.includes('penyeberangan') || j.includes('penyebrangan')) {
+      return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+    }
+    return 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+  };
+
+  const getProfitabilityBadgeStyle = (status?: string) => {
+    const s = (status || '').toLowerCase().trim();
+    if (s.includes('high profit')) {
+      return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+    }
+    if (s.includes('balanced')) {
+      return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+    }
+    if (s.includes('low profit') || s.includes('imbalance')) {
+      return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+    }
+    return 'bg-slate-800 text-slate-400 border-slate-700';
+  };
+
   return (
     <div className="bg-slate-900/80 border border-sky-500/20 rounded-2xl p-6 shadow-xl backdrop-blur-md mt-8">
       {/* Table Header Controls */}
@@ -246,15 +277,9 @@ export default function PortTable({ ports }: PortTableProps) {
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${
-                          port.jenis === 'Central Hub'
-                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                            : port.jenis === 'Hub Utama'
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                            : port.jenis === 'Feeder'
-                            ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                        }`}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${getTipeBadgeStyle(
+                          port.jenis
+                        )}`}
                       >
                         {port.jenis}
                       </span>
@@ -278,13 +303,9 @@ export default function PortTable({ ports }: PortTableProps) {
                     <td className="py-3 px-4 text-center">
                       {port.status_profitability ? (
                         <span
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${
-                            port.status_profitability === 'High Profit'
-                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                              : port.status_profitability === 'Balanced'
-                              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                              : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                          }`}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${getProfitabilityBadgeStyle(
+                            port.status_profitability
+                          )}`}
                         >
                           {port.status_profitability}
                         </span>

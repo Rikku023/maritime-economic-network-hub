@@ -33,7 +33,7 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
   const getPortColor = (jenis: string): [number, number, number, number] => {
     switch (jenis) {
       case 'Central Hub':
-        return [244, 63, 94, 255]; // Neon Crimson
+        return [244, 63, 94, 255]; // Neon Crimson / Rose
       case 'Hub Utama':
         return [245, 158, 11, 240]; // Amber Gold
       case 'Feeder':
@@ -144,30 +144,38 @@ export default function MapComponent({ ports, hoverMode }: MapProps) {
   return (
     <div className="relative w-full h-[580px] rounded-2xl overflow-hidden border border-sky-500/20 shadow-2xl bg-slate-950">
       {/* Map Legend Overlay */}
-      <div className="absolute top-3 left-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3.5 py-2 flex flex-col gap-1.5 text-xs shadow-lg">
-        <div className="flex items-center gap-3 font-semibold text-slate-300 border-b border-slate-800 pb-1">
-          <span>Tipe Pelabuhan:</span>
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Hub</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Utama</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Feeder</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Penyeberangan</span>
+      <div className="absolute top-3 left-3 z-10 bg-slate-950/90 border border-sky-500/30 backdrop-blur-md rounded-xl px-4 py-2.5 flex flex-col gap-2 text-xs shadow-xl">
+        <div className="flex items-center gap-3 font-bold text-slate-200 border-b border-slate-800 pb-1.5">
+          <span className="text-slate-300">Tipe Pelabuhan:</span>
+          <div className="flex items-center gap-2.5">
+            <span className="flex items-center gap-1.5 font-medium text-rose-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e] inline-block shadow-sm"></span> Hub
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-amber-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] inline-block shadow-sm"></span> Utama
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-cyan-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00e5ff] inline-block shadow-sm"></span> Feeder
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-emerald-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] inline-block shadow-sm"></span> Penyeberangan
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <span>Profitabilitas Rute:</span>
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> High Profit</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400"></span> Balanced</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400"></span> Low Profit</span>
+        <div className="flex items-center gap-3 text-xs text-slate-300 font-medium">
+          <span className="text-slate-400">Profitabilitas Rute:</span>
+          <div className="flex items-center gap-2.5">
+            <span className="flex items-center gap-1.5 text-emerald-300 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00ff80] inline-block shadow-sm"></span> High Profit
+            </span>
+            <span className="flex items-center gap-1.5 text-cyan-300 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00f5ff] inline-block shadow-sm"></span> Balanced
+            </span>
+            <span className="flex items-center gap-1.5 text-rose-300 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ff6384] inline-block shadow-sm"></span> Low Profit
+            </span>
           </div>
         </div>
-      </div>
-
-      {/* Hover Mode Indicator */}
-      <div className="absolute top-3 right-3 z-10 bg-slate-950/85 border border-sky-500/20 backdrop-blur-md rounded-xl px-3 py-1.5 text-[11px] text-cyan-300 shadow-lg flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-        <span>{hoverMode ? '✨ Hover Mode: Aktif' : '🌐 Mode Semua Rute'}</span>
       </div>
 
       {/* DeckGL Canvas */}

@@ -1,13 +1,13 @@
 import { Port } from '@/types/port';
 
 export const TANJUNG_PERAK_HUB = {
-  id: 'hub-surabaya',
+  id: 'port-jawa-55',
   nama_pelabuhan: 'Pelabuhan Tanjung Perak',
   lokasi: 'Surabaya, Jawa Timur',
   wilayah: 'Jawa' as const,
   jenis: 'Central Hub' as const,
-  latitude: -7.19667,
-  longitude: 112.73278,
+  latitude: -7.2,
+  longitude: 112.7333,
 };
 
 /**
